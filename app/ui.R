@@ -5,17 +5,19 @@ shinyUI(
       "taxa",
       shinyDirButton("import", "Import", "Please select a directory...", F),
       verbatimTextOutput("root"),
-      DT::DTOutput("taxa")
+      withSpinner(DT::DTOutput("taxa"), type = 8)
     ),
     tabPanel(
       "gmm",
       selectInput("reference", "reference", NULL),
+      selectInput("product", "product", NULL),
+      sliderInput("range", "range", min = 1, max = 1, value = c(1, 1)),
       actionButton("run", "run"),
-      plotOutput("gmm", height = 800)
+      withSpinner(plotOutput("gmm", height = 800), type = 8)
     ),
     tabPanel(
       "calls",
-      DT::DTOutput("calls")
+      withSpinner(DT::DTOutput("calls"), type = 8)
     ),
     tabPanel(
       "conf",

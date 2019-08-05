@@ -9,7 +9,7 @@ shinyServer(function(input, output, session) {
     if (length(files)) files
   })
   
-  taxa <- reactive({
+  taxa <- eventReactive(root(), {
     path <- file.path(root(), "rec.fas")
     req(file.exists(path))
     tokens <- names(ape::read.FASTA(path)) %>% str_split_fixed(" ", 2)
@@ -33,107 +33,70 @@ shinyServer(function(input, output, session) {
   # gmm
   
   observeEvent(taxa(), {
-    choices <- pull(taxa(), "id")
-    updateSelectInput(session, "reference", choices = choices)
+    req(taxa <- taxa())
+    updateSelectInput(session, "reference", choices = pull(taxa, "id"))
   })
   
-  output$reference <- renderUI({
-    req(taxa <- taxa())
-    choices <- pull(taxa, "id")
-    selectInput("reference", "reference", choices, choices[1])
+  cds <- eventReactive(input$reference, {
+    path <- file.path(root(), "rec.gbk")
+    req(file.exists(path), input$reference)
+    genbankr::readGenBank(text = read_gbk_acc(path, input$reference)) %>% genbankr::cds()
   })
 
-  data <- eventReactive(input$run, {
-    root <- root()
-    path <- file.path(root, "msa.fas")
-    req(ref <- input$reference)
+  observeEvent(cds(), {
+    req(cds <- cds())
+    updateSelectInput(session, "product", choices = cds$product)
+  })
+  
+  observeEvent(input$product, {
+    path <- file.path(root(), "msa.fas")
     
-    plt <- NULL
+    req(cds <- cds(), input$product, file.exists(path))
+    cds <- as.data.frame(cds)
+    
+    len <- as.integer(Biostrings::fasta.seqlengths(path, nrec = 1))
+    idx <- which(cds$product == input$product)
+    updateSliderInput(session, "range", max = len, value = c(min(cds$start[idx]), max(cds$end[idx])))
+  })
+  
+  rv <- reactiveValues(vcf = NULL, plt.cds = NULL, plt.gmm = NULL)
+  
+  vcf <- eventReactive(input$run, {
+    root <- root()
+    msa <- file.path(root, "msa.fas")
+    req(ref <- input$reference, file.exists(msa))
+
     txt <- file.path(root, "gmm.txt")
     log <- file.path(root, "gmm.log")
     if (file.exists(txt)) file.remove(txt)
     if (file.exists(log)) file.remove(log)
     file.create(log)
-    
+
     withProgress({
-      cmd <- paste("./gmm.sh", path, ref, wait = F)
+      cmd <- paste("./gmm.sh", msa, ref, wait = F)
       system(cmd, wait = F)
-      
+
       while(file.exists(log)) try(incProgress(message = read_file(log)), silent = T)
-      
-      incProgress(message = "plotting...")
-      files <- pull(read_tsv(txt, col_names = "file"), "file")
-      
-      len <- 
-        files[which.max(file.size(files))] %>%
-        read_lines() %>% 
-        .[grep("^##contig=", .)] %>%
-        str_match(., pattern = "length=(\\d+)") %>%
-        .[,2] %>%
-        as.integer()
-      
-      data <- list(vcf = calls(files), len = len)
-      path <- file.path(root, "rec.gbk")
-      if (file.exists(path))
-        data$gbk <- genbankr::readGenBank(text = read_gbk_acc(path, input$reference))
+
+      incProgress(message = "process vcf files...")
+      calls(pull(read_tsv(txt, col_names = "file"), "file"))
     })
-    
-    data
   })
-  
+
   output$gmm <- renderPlot({
-    isolate(input$reference)
-    
-    req(data <- data())
-    
-    gbk <- data$gbk
-    cds <- genbankr::cds(gbk)
-    
-    lvl <- overlevels(cds)
-    lvl <- factor(lvl, levels = rev(unique(lvl)))
-    
-    p1 <-
-      data.frame(
-        x = cds@ranges@start, 
-        xend = cds@ranges@start + cds@ranges@width - 1, 
-        product = cds$product,
-        strand = cds@strand,
-        size = 10,
-        lvl = lvl
-      ) %>%
-      ggplot(aes(x = x, xend = xend, y = lvl, yend = lvl, size = size)) +
-        geom_segment(aes(color = product)) +
-        xlab("") + 
-        ylab("") +
-        xlim(1, data$len) +
-        theme_minimal() +
-        theme(legend.position = "none")
-    
-    types <- c("trv", "trs", "ins", "del")
-    color <- setNames(c(input$color_trv, input$color_trs, input$color_ins, input$color_del), types)
-    size <- setNames(c(input$size_trv, input$size_trv, input$size_ins, input$size_del), types)
-    shape <- setNames(c(input$shape_trv, input$shape_trs, input$shape_ins, input$shape_del), types)
-    
-    p2 <-
-      ggplot(data$vcf, aes(POS, id)) +
-      geom_point(aes(color = type, size = type, shape = type)) +
-      scale_color_manual(values = color) +
-      scale_size_manual(values = size) +
-      scale_shape_manual(values = shape) +
-      xlim(1, data$len) +
-      xlab("pos") +
-      theme_minimal() +
-      theme(legend.position = "bottom")
-    
-    cowplot::plot_grid(p1, p2, ncol = 1, align = "v", rel_heights = c(1, 4))
+    req(cds <- cds(), vcf <- vcf())
+    print("renderPlot")
+    plt.cds <- plot_cds(cds) + xlim(input$range[1], input$range[2])
+    plt.gmm <- plot_gmm(vcf, input) + xlim(input$range[1], input$range[2])
+    cowplot::plot_grid(plt.cds, plt.gmm, ncol = 1, align = "v", rel_heights = c(1, 4))
   })
-  
+
   # calls
-  
+
   output$calls <- DT::renderDT({
-    req(data <- data())
+    req(vcf <- vcf())
     DT::datatable(
-      data$vcf,
+      vcf,
       rownames = FALSE,
       style = "bootstrap",
       class = "table-bordered table-striped table-hover responsive",

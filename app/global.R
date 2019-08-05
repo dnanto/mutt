@@ -1,13 +1,10 @@
 library(shiny)
 library(shinyFiles)
 library(shinyWidgets)
+library(shinycssloaders)
 library(tidyverse)
 
 roots = c(home = "..")
-types <- c("trv", "trs", "ins", "del")
-color <- setNames(c("magenta", "cyan", "black", "black"), types)
-size <- setNames(c(10, 10, 2, 2), types)
-shape <- setNames(c(124, 124, 6, 2), types)
 
 read_gbk_acc <- function(path, accession)
 {
@@ -21,9 +18,9 @@ read_gbk_acc <- function(path, accession)
 read_vcf <- function(file)
 {
   lines <- read_lines(file)
-  fields <- str_split(lines[grep("^#CHROM", lines)], "\t", simplify = T) %>% str_remove("^#")
+  fields <- c("CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO")
   if (!is_empty(lines))
-    read_tsv(lines, col_names = fields, comment = "#") %>%
+    read_tsv(lines, col_names = fields, col_types = "cicccccc", comment = "#") %>%
     mutate(id = basename(tools::file_path_sans_ext(file)))
 }
 
@@ -43,16 +40,59 @@ calls <- function(files)
     mutate(type = ifelse(str_detect("AG GA CT TC", paste0(REF, ALT)), "trs", "trv"))
   
   bind_rows(ind, snp) %>%
-    select(id, type, POS, REF, ALT, len) %>%
-    mutate_if(is.character, as.factor)
+  select(id, type, POS, REF, ALT, len) %>%
+  mutate_at("id", as.factor) %>%
+  mutate_at("type", factor, levels = c("trv", "trs", "ins", "del"))
 }
 
 overlevels <- function(ranges)
 {
-  data.frame(findOverlaps(ranges)) %>% 
+  data.frame(IRanges::findOverlaps(ranges)) %>% 
     setNames(c("x", "y")) %>% 
     filter(x <= y) %>% 
     pull("x") %>% 
     rle() %>% 
     .$lengths
+}
+
+plot_cds <- function(cds)
+{
+  lvl <- overlevels(cds)
+  lvl <- factor(lvl, levels = rev(unique(lvl)))
+  
+  data.frame(
+    x = cds@ranges@start, 
+    xend = cds@ranges@start + cds@ranges@width - 1, 
+    product = cds$product,
+    strand = cds@strand,
+    size = 10,
+    lvl = lvl
+  ) %>%
+  ggplot(aes(x = x, xend = xend, y = lvl, yend = lvl, size = size)) +
+  geom_segment(aes(color = product)) +
+  xlab("") + 
+  ylab("") +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_blank(),
+    axis.text.y = element_blank()
+  )
+}
+
+plot_gmm <- function(vcf, input)
+{
+  types <- c("trv", "trs", "ins", "del")
+  color <- setNames(c(input$color_trv, input$color_trs, input$color_ins, input$color_del), types)
+  size <- setNames(c(input$size_trv, input$size_trv, input$size_ins, input$size_del), types)
+  shape <- setNames(c(input$shape_trv, input$shape_trs, input$shape_ins, input$shape_del), types)
+  
+  ggplot(vcf, aes(POS, id)) +
+  geom_point(aes(color = type, size = type, shape = type)) +
+  scale_color_manual(values = color) +
+  scale_size_manual(values = size) +
+  scale_shape_manual(values = shape) +
+  xlab("pos") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
 }
