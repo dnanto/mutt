@@ -10,13 +10,19 @@ shinyServer(function(input, output, session) {
   })
   
   taxa <- eventReactive(root(), {
-    path <- file.path(root(), "rec.fas")
+    path <- file.path(root(), "msa.fas")
     req(file.exists(path))
     tokens <- names(ape::read.FASTA(path)) %>% str_split_fixed(" ", 2)
     data <- setNames(as.data.frame(tokens), c("id", "definition"))
     meta <- file.path(root(), "rec.tsv")
     if (file.exists(meta)) data <- merge(data, read_tsv(meta), all.x = T)
     data
+  })
+  
+  len <- eventReactive(root(), {
+    path <- file.path(root(), "msa.fas")
+    req(file.exists(path))
+    as.integer(Biostrings::fasta.seqlengths(path, nrec = 1))
   })
   
   output$taxa <- DT::renderDT({ 
@@ -33,28 +39,27 @@ shinyServer(function(input, output, session) {
   # gmm
   
   observeEvent(taxa(), {
-    req(taxa <- taxa())
-    updateSelectInput(session, "reference", choices = pull(taxa, "id"))
+    req(len <- len(), taxa <- taxa())
+    updateSelectizeInput(session, "reference", choices = pull(taxa, "id"), selected = NA)
+    updateSliderInput(session, "range", max = len, value = c(1, len))
   })
   
   cds <- eventReactive(input$reference, {
     path <- file.path(root(), "rec.gbk")
-    req(file.exists(path), input$reference)
-    genbankr::readGenBank(text = read_gbk_acc(path, input$reference)) %>% genbankr::cds()
+    req(input$reference)
+    if (file.exists(path))
+      genbankr::readGenBank(text = read_gbk_acc(path, input$reference)) %>% genbankr::cds()
   })
 
   observeEvent(cds(), {
     req(cds <- cds())
-    updateSelectInput(session, "product", choices = cds$product)
+    updateSelectizeInput(session, "product", choices = cds$product, selected = NA)
   })
   
   observeEvent(input$product, {
     path <- file.path(root(), "msa.fas")
-    
-    req(cds <- cds(), input$product, file.exists(path))
+    req(len <- len(), cds <- cds(), input$product, file.exists(path))
     cds <- as.data.frame(cds)
-    
-    len <- as.integer(Biostrings::fasta.seqlengths(path, nrec = 1))
     idx <- which(cds$product == input$product)
     updateSliderInput(session, "range", max = len, value = c(min(cds$start[idx]), max(cds$end[idx])))
   })
@@ -62,33 +67,42 @@ shinyServer(function(input, output, session) {
   rv <- reactiveValues(vcf = NULL, plt.cds = NULL, plt.gmm = NULL)
   
   vcf <- eventReactive(input$run, {
-    root <- root()
-    msa <- file.path(root, "msa.fas")
-    req(ref <- input$reference, file.exists(msa))
-
-    txt <- file.path(root, "gmm.txt")
-    log <- file.path(root, "gmm.log")
-    if (file.exists(txt)) file.remove(txt)
-    if (file.exists(log)) file.remove(log)
-    file.create(log)
-
+    path <- file.path(root(), "msa.fas")
+    req(ref <- input$reference, file.exists(path))
     withProgress({
-      cmd <- paste("./gmm.sh", msa, ref, wait = F)
-      system(cmd, wait = F)
-
-      while(file.exists(log)) try(incProgress(message = read_file(log)), silent = T)
-
-      incProgress(message = "process vcf files...")
-      calls(pull(read_tsv(txt, col_names = "file"), "file"))
+      incProgress(1/4, "read multiple alignment...")
+      msa <- Biostrings::readDNAMultipleAlignment(path)
+      lab <- names(msa@unmasked) %>% str_split(" ", 2) %>% sapply(head, 1)
+      mat <- str_split_fixed(msa, "", ncol(msa))
+      idx <- grep(ref, lab) %>% c(., setdiff(1:nrow(mat), .))
+      mat <- mat[idx, ]
+      lab <- factor(lab[idx], levels = lab[idx])
+      pos <- positions(mat[1, ])
+      
+      incProgress(1/4, "calculate indels...")
+      ind <- call_ind(mat)
+      incProgress(1/4, "calculate SNPs...")
+      snp <- call_snp(mat) 
+      bind_rows(ind, snp) %>% 
+        mutate(id = lab[idx], POS = pos[POS]) %>%
+        mutate_at("id", as.factor) %>%
+        mutate_at("type", as.factor) %>%
+        mutate_at("type", factor, levels = c("ins", "del", "trv", "trs")) %>%
+        mutate_at("POS", replace, list = .$POS == 0, value = 1)
     })
   })
 
   output$gmm <- renderPlot({
-    req(cds <- cds(), vcf <- vcf())
-    print("renderPlot")
-    plt.cds <- plot_cds(cds) + xlim(input$range[1], input$range[2])
-    plt.gmm <- plot_gmm(vcf, input) + xlim(input$range[1], input$range[2])
-    cowplot::plot_grid(plt.cds, plt.gmm, ncol = 1, align = "v", rel_heights = c(1, 4))
+    req(vcf <- vcf())
+    print(!is_empty(cds))
+    cds <- cds()
+    plt <- plot_gmm(vcf, input) + xlim(input$range[1], input$range[2])
+    if (!is_empty(cds))
+      plt <- 
+        (plot_cds(cds) + xlim(input$range[1], input$range[2])) %>% 
+        cowplot::plot_grid(plt, ncol = 1, align = "v", rel_heights = c(1, 4))
+    
+    plt
   })
 
   # calls

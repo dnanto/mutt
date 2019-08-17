@@ -45,6 +45,58 @@ calls <- function(files)
   mutate_at("type", factor, levels = c("trv", "trs", "ins", "del"))
 }
 
+positions <- function(ref)
+{
+  idx <- 0; pos <- c(); 
+  for (chr in ref) { idx <- idx + (chr != "-"); pos <- c(pos, idx); }
+  pos
+}
+
+call_ind <- function(msa)
+{
+  ref <- head(msa, 1)
+  alt <- tail(msa, -1)
+  
+  gap <- 2 * apply(alt, 2, grepl, pattern = "-") %>% apply(2, any) %>% as.integer()
+  run <- (alt[, 1:(ncol(alt)-1)] == alt[, 2:ncol(alt)]) %>% apply(2, all) %>% c(., last(.)) %>% as.integer()
+  
+  paste(gap + run, collapse = "") %>% 
+    str_locate_all("(2|3+2?)") %>%
+    as.data.frame() %>%
+    apply(1, function(ele) {
+      start <- ele["start"]
+      end <- ele["end"]
+      rng <- start:end
+      data.frame(
+        idx = 1 + 1:nrow(alt),
+        REF = paste(ref[rng], collapse = ""), 
+        ALT = apply(as.matrix(alt[, rng]), 1, paste, collapse = ""), 
+        POS = start,
+        stringsAsFactors = F
+      )
+    }) %>%
+    bind_rows() %>%
+    filter(REF != ALT & (str_detect(REF, "-") | str_detect(ALT, "-"))) %>%
+    mutate_at("ALT", str_remove_all, "-") %>%
+    mutate_at("REF", str_remove_all, "-") %>%
+    mutate(type = c("ins", "del")[(nchar(REF) > 0) + 1], len = nchar(ALT) - nchar(REF))
+}
+
+call_snp <- function(msa)
+{
+  n <- 1
+  lst <- list()
+  for (pos in seq_along(msa[1, ]))
+    for (idx in 2:nrow(msa))
+      if (msa[1, pos] != "-" & msa[idx, pos] != "-" & msa[idx, pos] != msa[1, pos])
+        lst[[n <- n + 1]] <- data.frame(
+          idx = idx, REF = msa[1, pos], ALT = msa[idx, pos], POS = pos, 
+          stringsAsFactors = F
+        )
+  bind_rows(lst) %>%
+    mutate(type = ifelse(str_detect("AG GA CT TC", paste0(REF, ALT)), "trs", "trv"), len = 1)
+}
+
 overlevels <- function(ranges)
 {
   data.frame(IRanges::findOverlaps(ranges)) %>% 

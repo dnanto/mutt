@@ -9,8 +9,8 @@ shinyUI(
     ),
     tabPanel(
       "gmm",
-      selectInput("reference", "reference", NULL),
-      selectInput("product", "product", NULL),
+      selectizeInput("reference", "reference", NULL),
+      selectizeInput("product", "product", NULL),
       sliderInput("range", "range", min = 1, max = 1, value = c(1, 1)),
       actionButton("run", "run"),
       withSpinner(plotOutput("gmm", height = 800), type = 8)
