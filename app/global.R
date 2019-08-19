@@ -4,7 +4,7 @@ library(shinyWidgets)
 library(shinycssloaders)
 library(tidyverse)
 
-roots = c(home = "..")
+roots = c(home = "~")
 
 read_gbk_acc <- function(path, accession)
 {
@@ -57,10 +57,10 @@ call_ind <- function(msa)
   ref <- head(msa, 1)
   alt <- tail(msa, -1)
   
-  gap <- 2 * apply(alt, 2, grepl, pattern = "-") %>% apply(2, any) %>% as.integer()
-  run <- (alt[, 1:(ncol(alt)-1)] == alt[, 2:ncol(alt)]) %>% apply(2, all) %>% c(., last(.)) %>% as.integer()
+  gap <- apply(msa, 2, grepl, pattern = "-") %>% apply(2, any)
+  run <- (msa[, 1:(ncol(msa)-1)] == msa[, 2:ncol(msa)]) %>% apply(2, all) %>% c(., last(.))
   
-  paste(gap + run, collapse = "") %>% 
+  paste(2 * gap + run, collapse = "") %>% 
     str_locate_all("(2|3+2?)") %>%
     as.data.frame() %>%
     apply(1, function(ele) {
@@ -79,7 +79,8 @@ call_ind <- function(msa)
     filter(REF != ALT & (str_detect(REF, "-") | str_detect(ALT, "-"))) %>%
     mutate_at("ALT", str_remove_all, "-") %>%
     mutate_at("REF", str_remove_all, "-") %>%
-    mutate(type = c("ins", "del")[(nchar(REF) > 0) + 1], len = nchar(ALT) - nchar(REF))
+    mutate(len = nchar(ALT) - nchar(REF)) %>%
+    mutate(type = c("ins", "del")[(len < 0) + 1])
 }
 
 call_snp <- function(msa)

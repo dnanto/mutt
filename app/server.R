@@ -84,11 +84,9 @@ shinyServer(function(input, output, session) {
       incProgress(1/4, "calculate SNPs...")
       snp <- call_snp(mat) 
       bind_rows(ind, snp) %>% 
-        mutate(id = lab[idx], POS = pos[POS]) %>%
-        mutate_at("id", as.factor) %>%
+        mutate(id = factor(lab[idx], levels = rev(unique(lab))), POS = pos[POS]) %>%
         mutate_at("type", as.factor) %>%
-        mutate_at("type", factor, levels = c("ins", "del", "trv", "trs")) %>%
-        mutate_at("POS", replace, list = .$POS == 0, value = 1)
+        mutate_at("type", factor, levels = c("ins", "del", "trv", "trs"))
     })
   })
 
