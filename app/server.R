@@ -93,7 +93,7 @@ shinyServer(function(input, output, session) {
   })
   
   output$gmm <- renderPlot({
-    vcf <- vcf()
+    vcf <- vcf() %>% filter(type %in% input$types)
     plt <- plot_gmm(vcf, input) + xlim(input$range[1], input$range[2])
     if (!is_empty(cds <- rv$cds))
       plt <- cowplot::plot_grid(

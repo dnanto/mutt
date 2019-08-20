@@ -9,10 +9,13 @@ shinyUI(
     ),
     tabPanel(
       "gmm",
-      selectizeInput("reference", "reference", NULL),
-      selectizeInput("product", "product", NULL),
-      sliderInput("range", "range", min = 1, max = 1, value = c(1, 1)),
-      actionButton("run", "run"),
+      fluidRow(
+        column(3, selectizeInput("reference", "reference", NULL)),
+        column(3, selectizeInput("product", "product", NULL)),
+        column(3, sliderInput("range", "range", min = 1, max = 1, value = c(1, 1))),
+        column(2, checkboxGroupInput("types", "types", choices = types, choiceValues = types, selected = types, inline = T)),
+        column(1, actionButton("run", "run"))
+      ),
       withSpinner(plotOutput("gmm", height = 800), type = 8)
     ),
     tabPanel(

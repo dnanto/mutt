@@ -3,8 +3,11 @@ library(shinyFiles)
 library(shinyWidgets)
 library(shinycssloaders)
 library(tidyverse)
+library(ggrepel)
 
 roots = c(home = "..")
+
+types <- c("trv", "trs", "ins", "del")
 
 read_gbk_loc <- function(path)
 {
@@ -103,8 +106,9 @@ plot_cds <- function(cds)
   ) %>%
   ggplot(aes(x = x, xend = xend, y = lvl, yend = lvl, size = size)) +
   geom_segment(aes(color = product)) +
+  geom_text_repel(aes(label = product), hjust = "left", vjust = "bottom", nudge_y = 0.25, check_overlap = T) +
   xlab("") + 
-  ylab("") +
+  ylab("product") +
   theme_minimal() +
   theme(
     legend.position = "none",
@@ -115,7 +119,6 @@ plot_cds <- function(cds)
 
 plot_gmm <- function(vcf, input)
 {
-  types <- c("trv", "trs", "ins", "del")
   color <- setNames(c(input$color_trv, input$color_trs, input$color_ins, input$color_del), types)
   size <- setNames(c(input$size_trv, input$size_trv, input$size_ins, input$size_del), types)
   shape <- setNames(c(input$shape_trv, input$shape_trs, input$shape_ins, input$shape_del), types)
