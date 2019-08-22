@@ -35,7 +35,7 @@ shinyServer(function(input, output, session) {
     )
   })
   
-  # gmm
+  # map
   
   rv <- reactiveValues(cds = NULL)
   
@@ -43,17 +43,17 @@ shinyServer(function(input, output, session) {
     file.exists(path <- file.path(root(), "rec.gbk"))
     loci <- c("")
     if (file.exists(path)) loci <- pull(read_gbk_loc(path), accn)
-    updateSelectizeInput(session, "reference", choices = loci, selected = NA)
+    updateSelectizeInput(session, "accession", choices = loci, selected = NA)
     updateSelectizeInput(session, "product", choices = c(""), selected = NA)
     updateSliderInput(session, "range", max = len(), value = c(1, len()))
   })
   
-  observeEvent(input$reference, {
+  observeEvent(input$accession, {
     rv$cds <- NULL
     if (file.exists(path <- file.path(root(), "rec.gbk"))) 
     {
       cds <- 
-        genbankr::readGenBank(text = read_gbk_acc(path, input$reference)) %>% 
+        genbankr::readGenBank(text = read_gbk_acc(path, input$accession)) %>% 
         genbankr::cds()
       updateSelectizeInput(session, "product", choices = cds$product, selected = NA)
       rv$cds <- cds
@@ -92,17 +92,36 @@ shinyServer(function(input, output, session) {
     })
   })
   
-  output$gmm <- renderPlot({
+  plot_map_func <- function(vcf, input) {
     vcf <- vcf() %>% filter(type %in% input$types)
-    plt <- plot_gmm(vcf, input) + xlim(input$range[1], input$range[2])
-    if (!is_empty(cds <- rv$cds))
-      plt <- cowplot::plot_grid(
-        plot_cds(cds) + xlim(input$range[1], input$range[2]), plt, 
-        ncol = 1, align = "v", rel_heights = c(1, 4)
-      )
+    
+    title <- ggtitle(paste("Variant Calls: ", taxa()[1, "id"], taxa()[1, "definition"]))
+    bold <- theme(plot.title = element_text(face = "bold"))
+    plt <- plot_map(vcf, input) + xlim(input$range[1], input$range[2])
+    
+    if (is_empty(cds <- rv$cds))
+    {
+      plt <- plt + title + bold
+    }
+    else
+    {
+      p <- plot_cds(cds, input) + xlim(input$range[1], input$range[2]) + title + bold
+      plt <- cowplot::plot_grid(p, plt, ncol = 1, align = "v", rel_heights = input$rel_heights)
+    }
     
     plt
-  })
+  }
+  
+  output$map <- renderPlot(plot_map_func(vcf(), input))
+  
+  output$export <- downloadHandler(
+    filename = function() paste(taxa()[1, "id"], input$ext, sep="."),
+    content = function(file) 
+      ggsave(
+        file, plot = plot_map_func(vcf(), input), 
+        width = input$width, height = input$height, units = input$units
+      )
+  )
   
   # calls
   
@@ -115,6 +134,25 @@ shinyServer(function(input, output, session) {
       class = "table-bordered table-striped table-hover responsive",
       filter = list(position = "top")
     )
+  })
+  
+  # conf
+  
+  output$shape <- renderPlot({
+    pch <- c(0:25, 32:127)
+    l <- length(pch)
+    n <- ceiling(sqrt(l))
+    data.frame(pch = pch) %>% 
+      rowid_to_column() %>% 
+      mutate(col = ceiling(rowid / 12), row = rep(0:(n-1), n)[1:l] + 1) %>%
+      ggplot(aes(row, col)) +
+      geom_point(aes(shape = pch, size = 14)) + 
+      geom_text(aes(label = pch), nudge_y = 0.5) + 
+      scale_shape_identity() + 
+      scale_y_reverse() + 
+      theme_void() +
+      theme(legend.position = "none", plot.title = element_text(face = "bold")) +
+      ggtitle("shape key") 
   })
   
 })

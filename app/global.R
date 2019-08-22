@@ -8,13 +8,20 @@ library(ggrepel)
 roots = c(home = "..")
 
 types <- c("trv", "trs", "ins", "del")
+labels <- c("label", "repel")
+ext <- c("eps", "ps", "tex", "pdf", "jpeg", "tiff", "png", "bmp", "svg", "wmf")
+units <- c("in", "cm", "mm")
 
 read_gbk_loc <- function(path)
 {
   read_lines(path) %>%
     .[grep("^LOCUS", .)] %>%
     enframe(name = NULL) %>%
-    separate(value, c("LOCUS", "accn", "length", "bp", "biomol", "topology", "gbdiv", "modified"), "\\s+")
+    separate(
+      value, 
+      c("LOCUS", "accn", "length", "bp", "biomol", "topology", "gbdiv", "modified"), 
+      "\\s+"
+    )
 }
 
 read_gbk_acc <- function(path, accession)
@@ -91,44 +98,53 @@ overlevels <- function(ranges)
     .$lengths
 }
 
-plot_cds <- function(cds)
+plot_cds <- function(cds, input)
 {
   lvl <- overlevels(cds)
   lvl <- factor(lvl, levels = rev(unique(lvl)))
   
-  data.frame(
-    x = cds@ranges@start, 
-    xend = cds@ranges@start + cds@ranges@width - 1, 
-    product = cds$product,
-    strand = cds@strand,
-    size = 10,
-    lvl = lvl
-  ) %>%
-  ggplot(aes(x = x, xend = xend, y = lvl, yend = lvl, size = size)) +
-  geom_segment(aes(color = product)) +
-  geom_text_repel(aes(label = product), hjust = "left", vjust = "bottom", nudge_y = 0.25, check_overlap = T) +
-  xlab("") + 
-  ylab("product") +
-  theme_minimal() +
-  theme(
-    legend.position = "none",
-    axis.text.x = element_blank(),
-    axis.text.y = element_blank()
-  )
+  p <-
+    data.frame(
+      x = cds@ranges@start, 
+      xend = cds@ranges@start + cds@ranges@width - 1, 
+      product = cds$product,
+      strand = cds@strand,
+      size = 10,
+      lvl = lvl
+    ) %>%
+    ggplot(aes(x = x, xend = xend, y = lvl, yend = lvl, size = size)) +
+    geom_segment(aes(color = product))
+  
+  if ("label" %in% input$labels)
+    if ("repel" %in% input$labels)
+      p <- p + geom_text_repel(aes(label = product), size = input$label_size, hjust = "left", vjust = "bottom", nudge_y = 0.25)
+    else
+      p <- p + geom_text(aes(label = product), size = input$label_size, hjust = "left", vjust = "bottom", nudge_y = 0.25, check_overlap = T)
+  
+  p +
+    xlab("") + 
+    ylab("product") +
+    theme_minimal() +
+    theme(
+      legend.position = "none",
+      axis.text.x = element_blank(),
+      axis.text.y = element_blank()
+    )
 }
 
-plot_gmm <- function(vcf, input)
+plot_map <- function(vcf, input)
 {
   color <- setNames(c(input$color_trv, input$color_trs, input$color_ins, input$color_del), types)
   size <- setNames(c(input$size_trv, input$size_trv, input$size_ins, input$size_del), types)
   shape <- setNames(c(input$shape_trv, input$shape_trs, input$shape_ins, input$shape_del), types)
+  alpha <- input$alpha
   
   ggplot(vcf, aes(POS, id)) +
-  geom_point(aes(color = type, size = type, shape = type)) +
-  scale_color_manual(values = color) +
-  scale_size_manual(values = size) +
-  scale_shape_manual(values = shape) +
-  xlab("pos") +
-  theme_minimal() +
-  theme(legend.position = "bottom")
+    geom_point(aes(color = type, size = type, shape = type), alpha = alpha) +
+    scale_color_manual(values = color) +
+    scale_size_manual(values = size) +
+    scale_shape_manual(values = shape) +
+    xlab("pos") +
+    theme_minimal() +
+    theme(legend.position = "bottom")
 }
