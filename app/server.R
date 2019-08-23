@@ -52,11 +52,15 @@ shinyServer(function(input, output, session) {
     rv$cds <- NULL
     if (file.exists(path <- file.path(root(), "rec.gbk"))) 
     {
-      cds <- 
-        genbankr::readGenBank(text = read_gbk_acc(path, input$accession)) %>% 
-        genbankr::cds()
-      updateSelectizeInput(session, "product", choices = cds$product, selected = NA)
-      rv$cds <- cds
+      withProgress({
+        incProgress(1/3, "reading genbank...")
+        cds <- 
+          genbankr::readGenBank(text = read_gbk_acc(path, input$accession)) %>% 
+          genbankr::cds()
+        incProgress(2/3, "update ui...")
+        updateSelectizeInput(session, "product", choices = cds$product, selected = NA)
+        rv$cds <- cds
+      })
     }
   })
   
@@ -106,20 +110,21 @@ shinyServer(function(input, output, session) {
     else
     {
       p <- plot_cds(cds, input) + xlim(input$range[1], input$range[2]) + title + bold
-      plt <- cowplot::plot_grid(p, plt, ncol = 1, align = "v", rel_heights = input$rel_heights)
+      plt <- cowplot::plot_grid(p, plt, ncol = 1, align = "v", rel_heights = c(input$rel1, input$rel2))
     }
     
     plt
   }
   
-  output$map <- renderPlot(plot_map_func(vcf(), input))
+  observeEvent(input$height, output$map <- renderPlot(plot_map_func(vcf(), input), height = input$height))
+  
   
   output$export <- downloadHandler(
     filename = function() paste(taxa()[1, "id"], input$ext, sep="."),
     content = function(file) 
       ggsave(
         file, plot = plot_map_func(vcf(), input), 
-        width = input$width, height = input$height, units = input$units
+        width = input$exp_width, height = input$exp_height, units = input$units, scale = input$scale, dpi = input$dpi
       )
   )
   
