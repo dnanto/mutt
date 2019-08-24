@@ -38,8 +38,8 @@ shinyServer(function(input, output, session) {
   observeEvent(path_gbk(), {
     req(nchar(path <- path_gbk()) > 0)
     loci <- pull(read_gbk_loc(path), accn)
-    updateSelectInput(session, "accession", choices = loci, selected = NA)
-    updateSelectInput(session, "product", choices = c(""), selected = NA)
+    updateSelectizeInput(session, "accession", choices = loci, selected = NA)
+    updateSelectizeInput(session, "product", choices = c(""), selected = NA)
     updateSliderInput(session, "range", max = len(), value = c(1, len()))
   })
   
@@ -50,6 +50,17 @@ shinyServer(function(input, output, session) {
       genbankr::readGenBank(text = read_gbk_acc(path, input$accession), ret.seq = F) %>% genbankr::cds()
     })
   })
+  
+  output$cds <- DT::renderDT(
+    DT::datatable(
+      select(as.data.frame(cds()), -translation),
+      rownames = FALSE,
+      style = "bootstrap",
+      class = "table-bordered table-striped table-hover responsive",
+      filter = list(position = "top"),
+      options = list(scrollX = TRUE)
+    )
+  )
   
   observeEvent(cds(), updateSelectizeInput(session, "product", choices = cds()$product, selected = NA))
   
