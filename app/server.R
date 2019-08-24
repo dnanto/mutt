@@ -103,18 +103,20 @@ shinyServer(function(input, output, session) {
     title <- ggtitle(paste("Variant Calls [", names(msa()@unmasked)[1], "]"))
     
     color <- setNames(c(input$color_trv, input$color_trs, input$color_ins, input$color_del), types)
+    alpha <- setNames(c(input$alpha_trv, input$alpha_trs, input$alpha_ins, input$alpha_del), types)
     shape <- setNames(c(input$shape_trv, input$shape_trs, input$shape_ins, input$shape_del), types)
     size <- setNames(c(input$size_trv, input$size_trv, input$size_ins, input$size_del), types)
     
     plt <-
       ggplot(calls, aes(POS, id)) +
-      geom_point(aes(color = type, size = type, shape = type), alpha = input$alpha) +
+      geom_point(aes(color = type, alpha = type, size = type, shape = type)) +
       scale_color_manual(values = color) +
+      scale_alpha_manual(values = alpha) +
       scale_size_manual(values = size) +
       scale_shape_manual(values = shape) +
       xlab("pos") +
       theme_minimal() +
-      theme(legend.position = "bottom") +
+      theme(legend.position = "bottom", title = element_text(size = input$title_size)) +
       xlim(input$range[1], input$range[2])
     
     cds <- NULL
@@ -143,24 +145,22 @@ shinyServer(function(input, output, session) {
               aes(color = product), 
               lineend = input$lineend, linejoin = input$linejoin, size = input$segment_size,
               arrow = arrow(length = unit(input$arrow_length, input$arrow_units), type = input$arrow_type)
-            )
-      
-      if (input$label)
-        plt_cds <- 
-          plt_cds +
-            geom_text_repel(
-              aes(label = product), hjust = "left", vjust = "bottom", nudge_y = 0.25,
-              size = input$text_size_cds, segment.size = input$line_size_cds
-            )
-      
-      plt_cds <-
-        plt_cds +
+            ) +
+          {
+            if (input$label)
+              geom_text_repel(
+                aes(label = product, x = (x + xend) / 2), 
+                hjust = "left", vjust = "bottom", nudge_y = 0.25,
+                size = input$text_size_cds, segment.size = input$line_size_cds
+              )
+          } +
           theme_minimal() +
           theme(legend.position = "none") +
           xlab("") + 
           ylab("product") +
           theme_minimal() +
           theme(
+            title = element_text(size = input$title_size),
             legend.position = "none",
             axis.text.x = element_blank(),
             axis.text.y = element_blank()
