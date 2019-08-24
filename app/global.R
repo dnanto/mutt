@@ -2,15 +2,22 @@ library(shiny)
 library(shinyFiles)
 library(shinyWidgets)
 library(shinycssloaders)
+library(Biostrings)
 library(tidyverse)
 library(ggrepel)
 
 roots = c(home = "..")
 
-types <- c("trv", "trs", "ins", "del")
-labels <- c("label", "repel")
 ext <- c("eps", "ps", "tex", "pdf", "jpeg", "tiff", "png", "bmp", "svg", "wmf")
 units <- c("in", "cm", "mm")
+
+types <- c("trv", "trs", "ins", "del")
+
+lineend <- c("round", "butt", "square")
+linejoin <- c("round", "mitre", "bevel")
+arrow_units <- c("cm", "mm", "inches")
+arrow_ends <- c("last", "first", "both")
+arrow_type <- c("open", "closed")
 
 read_gbk_loc <- function(path)
 {
@@ -96,55 +103,4 @@ overlevels <- function(ranges)
     pull("x") %>% 
     rle() %>% 
     .$lengths
-}
-
-plot_cds <- function(cds, input)
-{
-  lvl <- overlevels(cds)
-  lvl <- factor(lvl, levels = rev(unique(lvl)))
-  
-  p <-
-    data.frame(
-      x = cds@ranges@start, 
-      xend = cds@ranges@start + cds@ranges@width - 1, 
-      product = cds$product,
-      strand = cds@strand,
-      size = 10,
-      lvl = lvl
-    ) %>%
-    ggplot(aes(x = x, xend = xend, y = lvl, yend = lvl, size = size)) +
-    geom_segment(aes(color = product))
-  
-  if ("label" %in% input$labels)
-    if ("repel" %in% input$labels)
-      p <- p + geom_text_repel(aes(label = product), size = input$label_size, hjust = "left", vjust = "bottom", nudge_y = 0.25)
-    else
-      p <- p + geom_text(aes(label = product), size = input$label_size, hjust = "left", vjust = "bottom", nudge_y = 0.25, check_overlap = T)
-  
-  p +
-    xlab("") + 
-    ylab("product") +
-    theme_minimal() +
-    theme(
-      legend.position = "none",
-      axis.text.x = element_blank(),
-      axis.text.y = element_blank()
-    )
-}
-
-plot_map <- function(vcf, input)
-{
-  color <- setNames(c(input$color_trv, input$color_trs, input$color_ins, input$color_del), types)
-  size <- setNames(c(input$size_trv, input$size_trv, input$size_ins, input$size_del), types)
-  shape <- setNames(c(input$shape_trv, input$shape_trs, input$shape_ins, input$shape_del), types)
-  alpha <- input$alpha
-  
-  ggplot(vcf, aes(POS, id)) +
-    geom_point(aes(color = type, size = type, shape = type), alpha = alpha) +
-    scale_color_manual(values = color) +
-    scale_size_manual(values = size) +
-    scale_shape_manual(values = shape) +
-    xlab("pos") +
-    theme_minimal() +
-    theme(legend.position = "bottom")
 }

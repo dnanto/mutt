@@ -1,81 +1,71 @@
 shinyServer(function(input, output, session) {
   
-  # taxa
+  ## msa
   
-  shinyDirChoose(input, "import", roots = roots)
+  shinyFileChoose(input, "import_msa", roots = roots)
   
-  root <- eventReactive(input$import, {
-    files <- parseDirPath(roots, input$import)
-    if (length(files)) files
+  path_msa <- eventReactive(input$import_msa, pull(parseFilePaths(roots, input$import_msa), datapath))
+  
+  output$path_msa <- eventReactive(path_msa(), { req(nchar(path <- path_msa()) > 0); path; })
+  
+  observeEvent(path_msa(), updateSliderInput(session, "range", max = len(), value = c(1, len())))
+  
+  msa <- eventReactive(path_msa(), { req(nchar(path <- path_msa()) > 0); readDNAMultipleAlignment(path); })
+  
+  len <- eventReactive(msa(), { req(msa <- msa()); ncol(msa) - countPattern("-", msa@unmasked[[1]]); })
+  
+  output$taxa <- DT::renderDT({
+    req(msa <- msa())
+    names(msa@unmasked) %>% 
+      enframe(name = NULL) %>% 
+      separate(value, c("id", "definition"), sep = " ", extra = "merge", fill = "right") %>%
+      DT::datatable(
+        rownames = FALSE,
+        style = "bootstrap",
+        class = "table-bordered table-striped table-hover responsive",
+        filter = list(position = "top")
+      )
   })
   
-  taxa <- eventReactive(root(), {
-    req(file.exists(path <- file.path(root(), "msa.fas")))
-    tokens <- names(ape::read.FASTA(path)) %>% str_split_fixed(" ", 2)
-    data <- setNames(as.data.frame(tokens), c("id", "definition"))
-    meta <- file.path(root(), "rec.tsv")
-    if (file.exists(meta)) data <- merge(data, read_tsv(meta), all.x = T)
-    data
-  })
+  ## gbk
   
-  len <- eventReactive(root(), {
-    req(file.exists(path <- file.path(root(), "msa.fas")))
-    rec <- Biostrings::readDNAStringSet(path, nrec = 1)
-    length(rec[[1]]) - Biostrings::countPattern("-", rec[[1]])
-  })
+  shinyFileChoose(input, "import_gbk", roots = roots)
   
-  output$taxa <- DT::renderDT({ 
-    req(taxa <- taxa())
-    DT::datatable(
-      taxa,
-      rownames = FALSE,
-      style = "bootstrap",
-      class = "table-bordered table-striped table-hover responsive",
-      filter = list(position = "top")
-    )
-  })
+  path_gbk <- eventReactive(input$import_gbk, pull(parseFilePaths(roots, input$import_gbk), datapath))
   
-  # map
+  output$path_gbk <- eventReactive(path_gbk(), { req(nchar(path <- path_gbk()) > 0); path; })
   
-  rv <- reactiveValues(cds = NULL)
-  
-  observeEvent(root(), {
-    file.exists(path <- file.path(root(), "rec.gbk"))
-    loci <- c("")
-    if (file.exists(path)) loci <- pull(read_gbk_loc(path), accn)
-    updateSelectizeInput(session, "accession", choices = loci, selected = NA)
-    updateSelectizeInput(session, "product", choices = c(""), selected = NA)
+  observeEvent(path_gbk(), {
+    req(nchar(path <- path_gbk()) > 0)
+    loci <- pull(read_gbk_loc(path), accn)
+    updateSelectInput(session, "accession", choices = loci, selected = NA)
+    updateSelectInput(session, "product", choices = c(""), selected = NA)
     updateSliderInput(session, "range", max = len(), value = c(1, len()))
   })
   
-  observeEvent(input$accession, {
-    rv$cds <- NULL
-    if (file.exists(path <- file.path(root(), "rec.gbk"))) 
-    {
-      withProgress({
-        incProgress(1/3, "reading genbank...")
-        cds <- 
-          genbankr::readGenBank(text = read_gbk_acc(path, input$accession)) %>% 
-          genbankr::cds()
-        incProgress(2/3, "update ui...")
-        updateSelectizeInput(session, "product", choices = cds$product, selected = NA)
-        rv$cds <- cds
-      })
-    }
+  cds <- eventReactive(input$accession, {
+    req(nchar(path <- path_gbk()) > 0)
+    withProgress({
+      incProgress(1/3, "reading genbank...")
+      genbankr::readGenBank(text = read_gbk_acc(path, input$accession), ret.seq = F) %>% genbankr::cds()
+    })
   })
   
+  observeEvent(cds(), updateSelectizeInput(session, "product", choices = cds()$product, selected = NA))
+  
   observeEvent(input$product, {
-    cds <- rv$cds %>% as.data.frame()
+    cds <- cds() %>% as.data.frame()
     idx <- which(cds$product == input$product)
     updateSliderInput(session, "range", value = c(min(cds$start[idx]), max(cds$end[idx])))
   })
+
+  ## VCF
   
   vcf <- eventReactive(input$run, {
-    path <- file.path(root(), "msa.fas")
     withProgress({
       incProgress(1/5, "read multiple alignment...")
-      msa <- Biostrings::readDNAMultipleAlignment(path)
-      lab <- names(msa@unmasked) %>% str_split_fixed(" ", 2) %>% lapply(head, 1)
+      msa <- msa()
+      lab <- names(msa@unmasked) %>% str_split_fixed(" ", 2) %>% apply(1, head, 1)
       mat <- str_split_fixed(msa, "", ncol(msa))
       pos <- positions(mat[1,])
       
@@ -86,78 +76,115 @@ shinyServer(function(input, output, session) {
       snp <- call_snp(mat)
       
       incProgress(1/5, "combine...")
-      bind_rows(ind, snp) %>%
-        mutate(
-          id = factor(lab[idx], levels = rev(unique(lab))),
-          POS = pos[POS]
-        ) %>%
-        mutate_at("type", as.factor) %>%
-        mutate_at("type", factor, levels = c("ins", "del", "trv", "trs"))
+      mutate(
+        bind_rows(ind, snp),
+        POS = pos[POS],
+        id = factor(lab[idx], levels = rev(unique(lab))),
+        type = factor(as.factor(type), levels = c("ins", "del", "trv", "trs"))
+      )
     })
   })
   
-  plot_map_func <- function(vcf, input) {
-    vcf <- vcf() %>% filter(type %in% input$types)
+  plot_map <- function() 
+  {
+    calls <- filter(vcf(), type %in% input$types)
     
-    title <- ggtitle(paste("Variant Calls: ", taxa()[1, "id"], taxa()[1, "definition"]))
-    bold <- theme(plot.title = element_text(face = "bold"))
-    plt <- plot_map(vcf, input) + xlim(input$range[1], input$range[2])
+    title <- ggtitle(paste("Variant Calls [", names(msa()@unmasked)[1], "]"))
     
-    if (is_empty(cds <- rv$cds))
+    color <- setNames(c(input$color_trv, input$color_trs, input$color_ins, input$color_del), types)
+    shape <- setNames(c(input$shape_trv, input$shape_trs, input$shape_ins, input$shape_del), types)
+    size <- setNames(c(input$size_trv, input$size_trv, input$size_ins, input$size_del), types)
+    
+    plt <-
+      ggplot(calls, aes(POS, id)) +
+      geom_point(aes(color = type, size = type, shape = type), alpha = input$alpha) +
+      scale_color_manual(values = color) +
+      scale_size_manual(values = size) +
+      scale_shape_manual(values = shape) +
+      xlab("pos") +
+      theme_minimal() +
+      theme(legend.position = "bottom") +
+      xlim(input$range[1], input$range[2])
+    
+    cds <- NULL
+    
+    if (nchar(input$accession) > 0)
     {
-      plt <- plt + title + bold
+      cds <- cds()
+      cds <- cds[input$range[1] <= start(cds) & start(cds) <= input$range[2]]
+    }
+    
+    if (is_empty(cds)) 
+    {
+      plt <- plt + title
     }
     else
     {
-      p <- plot_cds(cds, input) + xlim(input$range[1], input$range[2]) + title + bold
-      plt <- cowplot::plot_grid(p, plt, ncol = 1, align = "v", rel_heights = c(input$rel1, input$rel2))
+      lvl <- overlevels(cds) %>% factor(., levels = rev(unique(.)))
+      plt_cds <-
+        data.frame(
+          product = cds$product, strand = cds@strand, lvl = lvl,
+          x = cds@ranges@start, xend = cds@ranges@start + cds@ranges@width - 1
+        ) %>%
+          transform(x = ifelse(strand == '-', xend, x), xend = ifelse(strand == '+', xend, x)) %>%
+          ggplot(aes(x = x, xend = xend, y = lvl, yend = lvl)) +
+            geom_segment(
+              aes(color = product), 
+              lineend = input$lineend, linejoin = input$linejoin, size = input$segment_size,
+              arrow = arrow(length = unit(input$arrow_length, input$arrow_units), type = input$arrow_type)
+            )
+      
+      if (input$label)
+        plt_cds <- 
+          plt_cds +
+            geom_text_repel(
+              aes(label = product), hjust = "left", vjust = "bottom", nudge_y = 0.25,
+              size = input$text_size_cds, segment.size = input$line_size_cds
+            )
+      
+      plt_cds <-
+        plt_cds +
+          theme_minimal() +
+          theme(legend.position = "none") +
+          xlab("") + 
+          ylab("product") +
+          theme_minimal() +
+          theme(
+            legend.position = "none",
+            axis.text.x = element_blank(),
+            axis.text.y = element_blank()
+          ) +
+          xlim(input$range[1], input$range[2]) +
+          title
+      
+      plt <- cowplot::plot_grid(plt_cds, plt, ncol = 1, align = "v", rel_heights = c(input$rel_cds, input$rel_msa))
     }
     
     plt
   }
   
-  observeEvent(input$height, output$map <- renderPlot(plot_map_func(vcf(), input), height = input$height))
-  
+  observeEvent(input$height, output$map <- renderPlot(plot_map(), height = input$height))
   
   output$export <- downloadHandler(
-    filename = function() paste(taxa()[1, "id"], input$ext, sep="."),
+    filename = function() paste(str_split_fixed(names(msa()@unmasked)[1], " ", 2)[,1], input$ext, sep="."),
     content = function(file) 
       ggsave(
-        file, plot = plot_map_func(vcf(), input), 
-        width = input$exp_width, height = input$exp_height, units = input$units, scale = input$scale, dpi = input$dpi
+        file, plot = plot_map(), 
+        width = input$exp_width, height = input$exp_height, 
+        units = input$units, scale = input$scale, dpi = input$dpi
       )
   )
   
   # calls
   
-  output$calls <- DT::renderDT({
-    req(vcf <- vcf())
+  output$calls <- DT::renderDT(
     DT::datatable(
-      vcf,
+      vcf(),
       rownames = FALSE,
       style = "bootstrap",
       class = "table-bordered table-striped table-hover responsive",
       filter = list(position = "top")
     )
-  })
-  
-  # conf
-  
-  output$shape <- renderPlot({
-    pch <- c(0:25, 32:127)
-    l <- length(pch)
-    n <- ceiling(sqrt(l))
-    data.frame(pch = pch) %>% 
-      rowid_to_column() %>% 
-      mutate(col = ceiling(rowid / 12), row = rep(0:(n-1), n)[1:l] + 1) %>%
-      ggplot(aes(row, col)) +
-      geom_point(aes(shape = pch, size = 14)) + 
-      geom_text(aes(label = pch), nudge_y = 0.5) + 
-      scale_shape_identity() + 
-      scale_y_reverse() + 
-      theme_void() +
-      theme(legend.position = "none", plot.title = element_text(face = "bold")) +
-      ggtitle("shape key") 
-  })
+  )
   
 })
