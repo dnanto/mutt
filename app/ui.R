@@ -10,16 +10,16 @@ dashboardPage(
       column(4, numericInput("rel_cds", "rel_cds", 1, min = 1)),
       column(4, numericInput("rel_msa", "rel_msa", 4, min = 1))
     ),
-    checkboxGroupInput("types", "types", choices = types, choiceValues = types, selected = types, inline = T, width = "100%"),
+    checkboxGroupInput("types", "types", choices = types, selected = types, inline = T, width = "100%"),
     fluidRow(
-      column(6, selectizeInput("accession", "accession", NULL, width = "100%")),
-      column(6, selectizeInput("product", "product", NULL, width = "100%"))
+      column(6, selectizeInput("accession", "accession", NULL, width = "100%"), style = "padding-right: 0px;"),
+      column(6, selectizeInput("product", "product", NULL, width = "100%"), style = "padding-left: 0px;")
     ),
-    numericInput("title_size", "title_size", 8, min = 0, width = "100%"),
     fluidRow(
-      column(4, numericInput("text_size_cds", "text_size_cds", 2, min = 0, step = 0.5)),
-      column(4, numericInput("line_size_cds", "line_size_cds", 0.25, min = 0, step = 0.25)),
-      column(4, checkboxInput("label", "display product name", value = T))
+      column(3, numericInput("title_size", "title_size", 8, min = 0, width = "100%"), style = "padding-right: 0px;"),
+      column(3, numericInput("text_size_cds", "text_size_cds", 2, min = 0, step = 0.5), style = "padding: 0px;"),
+      column(3, numericInput("line_size_cds", "line_size_cds", 0.25, min = 0, step = 0.25), style = "padding: 0px;"),
+      column(3, checkboxInput("label", "label", value = T), style = "padding-left: 0px;")
     ),
     fluidRow(
       column(4, numericInput("arrow_length", "arrow_length", 0.0025, min = 0, step = 0.0025)),
@@ -59,8 +59,9 @@ dashboardPage(
   ),
   dashboardBody(
     tabsetPanel(
+      id = "tabset_panel",
       tabPanel(
-        "Taxa",
+        "Taxa", value = "tab_taxa",
         box(
           width = 12,
           wellPanel(
@@ -74,7 +75,7 @@ dashboardPage(
         )
       ),
       tabPanel(
-        "CDS",
+        "CDS", value = "tab_cds",
         box(
           width = 12,
           wellPanel(
@@ -88,14 +89,14 @@ dashboardPage(
         )
       ),
       tabPanel(
-        "Map", withSpinner(plotOutput("map", height = 1000), type = 8)
+        "Map", value = "tab_map", withSpinner(plotOutput("map", height = 1000), type = 8)
       ),
       tabPanel(
-        "Calls",
+        "Calls", value = "tab_calls",
         box(width = 12, withSpinner(DT::DTOutput("calls"), type = 8))
       ),
       tabPanel(
-        "Export",
+        "Export", value = "tab_export",
         box(
           width = 12,
           wellPanel(

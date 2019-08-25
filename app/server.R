@@ -70,9 +70,11 @@ shinyServer(function(input, output, session) {
     updateSliderInput(session, "range", value = c(min(cds$start[idx]), max(cds$end[idx])))
   })
 
-  ## VCF
+  ## calls
   
-  vcf <- eventReactive(input$run, {
+  observeEvent(input$run, updateTabsetPanel(session, "tabset_panel", selected = "tab_map"))
+  
+  calls <- eventReactive(input$run, {
     withProgress({
       incProgress(1/5, "read multiple alignment...")
       msa <- msa()
@@ -98,7 +100,7 @@ shinyServer(function(input, output, session) {
   
   plot_map <- function() 
   {
-    calls <- filter(vcf(), type %in% input$types)
+    calls <- filter(calls(), type %in% input$types & input$range[1] <= POS & POS <= input$range[2])
     
     title <- ggtitle(paste("Variant Calls [", names(msa()@unmasked)[1], "]"))
     
@@ -116,8 +118,7 @@ shinyServer(function(input, output, session) {
       scale_shape_manual(values = shape) +
       xlab("pos") +
       theme_minimal() +
-      theme(legend.position = "bottom", title = element_text(size = input$title_size)) +
-      xlim(input$range[1], input$range[2])
+      theme(legend.position = "bottom", title = element_text(size = input$title_size))
     
     cds <- NULL
     
@@ -165,7 +166,6 @@ shinyServer(function(input, output, session) {
             axis.text.x = element_blank(),
             axis.text.y = element_blank()
           ) +
-          xlim(input$range[1], input$range[2]) +
           title
       
       plt <- cowplot::plot_grid(plt_cds, plt, ncol = 1, align = "v", rel_heights = c(input$rel_cds, input$rel_msa))
@@ -190,7 +190,7 @@ shinyServer(function(input, output, session) {
   
   output$calls <- DT::renderDT(
     DT::datatable(
-      vcf(),
+      arrange(select(calls(), id, everything(), -idx), id, POS),
       rownames = FALSE,
       style = "bootstrap",
       class = "table-bordered table-striped table-hover responsive",

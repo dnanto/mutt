@@ -80,20 +80,18 @@ call_ind <- function(msa)
     mutate(type = c("ins", "del")[(len < 0) + 1])
 }
 
-call_snp <- function(msa)
+call_snp <- function(mat)
 {
-  n <- 1
-  lst <- list()
-  for (pos in seq_along(msa[1, ]))
-    for (idx in 2:nrow(msa))
-      if (msa[1, pos] != "-" & msa[idx, pos] != "-" & msa[idx, pos] != msa[1, pos])
-        lst[[n <- n + 1]] <- 
-          data.frame(
-            idx = idx, REF = msa[1, pos], ALT = msa[idx, pos], POS = pos, len = 1,
-            stringsAsFactors = F
-          ) %>% 
-          mutate(type = ifelse(str_detect("AG GA CT TC", paste0(REF, ALT)), "trs", "trv"))
-  bind_rows(lst)
+  ref <- mat[1, ]
+  pos <- seq_along(ref)
+  lapply(2:nrow(mat), function(idx) {
+    row <- mat[idx, ]
+    data.frame(POS = pos[ref != '-' & row != '-' & ref != row]) %>% 
+      mutate(idx = idx, ALT = row[POS])
+  }) %>% 
+    bind_rows() %>%
+    mutate(REF = ref[POS], len = 1) %>%
+    mutate(type = ifelse(str_detect("AG GA CT TC", paste0(REF, ALT)), "trs", "trv"))
 }
 
 overlevels <- function(ranges)
