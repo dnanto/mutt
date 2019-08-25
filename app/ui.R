@@ -6,14 +6,14 @@ dashboardPage(
     actionButton("run", "Run", width = "93%"),
     sliderInput("range", "range", min = 1, max = 1, value = c(1, 1), width = "100%"),
     fluidRow(
-      column(4, numericInput("height", "height", 1000, step = 100)),
-      column(4, numericInput("rel_cds", "rel_cds", 1, min = 1)),
-      column(4, numericInput("rel_msa", "rel_msa", 4, min = 1))
+      column(4, numericInput("height", "height", 1000, step = 100), style = "padding-right: 0px;"),
+      column(4, numericInput("rel_cds", "rel_cds", 1, min = 1), style = "padding: 0px;"),
+      column(4, numericInput("rel_msa", "rel_msa", 4, min = 1), style = "padding-left: 0px;")
     ),
     checkboxGroupInput("types", "types", choices = types, selected = types, inline = T, width = "100%"),
     fluidRow(
-      column(6, selectizeInput("accession", "accession", NULL, width = "100%"), style = "padding-right: 0px;"),
-      column(6, selectizeInput("product", "product", NULL, width = "100%"), style = "padding-left: 0px;")
+      column(6, selectizeInput("accession", "accession", NULL), style = "padding-right: 0px;"),
+      column(6, selectizeInput("product", "product", NULL), style = "padding-left: 0px;")
     ),
     fluidRow(
       column(3, numericInput("title_size", "title_size", 8, min = 0, width = "100%"), style = "padding-right: 0px;"),
@@ -22,38 +22,38 @@ dashboardPage(
       column(3, checkboxInput("label", "label", value = T), style = "padding-left: 0px;")
     ),
     fluidRow(
-      column(4, numericInput("arrow_length", "arrow_length", 0.0025, min = 0, step = 0.0025)),
-      column(4, selectInput("arrow_units", "arrow_units", arrow_units, arrow_units[1])),
-      column(4, selectInput("arrow_type", "arrow_type", arrow_type, arrow_type[2]))
+      column(4, numericInput("arrow_length", "arrow_length", 0.0025, min = 0, step = 0.0025), style = "padding-right: 0px;"),
+      column(4, selectInput("arrow_units", "arrow_units", arrow_units, arrow_units[1]), style = "padding: 0px;"),
+      column(4, selectInput("arrow_type", "arrow_type", arrow_type, arrow_type[2]), style = "padding-left: 0px;")
     ),
     fluidRow(
-      column(4, selectInput("lineend", "line-end", lineend, lineend[2])),
-      column(4, selectInput("linejoin", "line-join", linejoin, linejoin[2])),
-      column(4, numericInput("segment_size", "segment_size", 2, min = 0, step = 1))
+      column(4, selectInput("lineend", "line-end", lineend, lineend[2]), style = "padding-right: 0px;"),
+      column(4, selectInput("linejoin", "line-join", linejoin, linejoin[2])), style = "padding: 0px;",
+      column(4, numericInput("segment_size", "segment_size", 2, min = 0, step = 1), style = "padding-left: 0px;")
     ),
     fluidRow(
-      column(3, spectrumInput("color_trv", "color_trv", selected = "magenta", update_on = "change")),
-      column(3, numericInput("alpha_trv", "alpha_trv", 0.5, min = 0, max = 1, step = 0.1)),
-      column(3, numericInput("shape_trv", "shape_trv", 124, min = 0, max = 127)),
-      column(3, numericInput("size_trv", "size_trv", 10, min = 0))
+      column(3, spectrumInput("color_trv", "color_trv", selected = "magenta", update_on = "change"), style = "padding-right: 0px;"),
+      column(3, numericInput("alpha_trv", "alpha_trv", 0.5, min = 0, max = 1, step = 0.1), style = "padding: 0px;"),
+      column(3, numericInput("shape_trv", "shape_trv", 124, min = 0, max = 127), style = "padding: 0px;"),
+      column(3, numericInput("size_trv", "size_trv", 10, min = 0), style = "padding-left: 0px;")
     ),
     fluidRow(
-      column(3, spectrumInput("color_trs", "color_trs", selected = "cyan", update_on = "change")),
-      column(3, numericInput("alpha_trs", "alpha_trs", 0.5, min = 0, max = 1, step = 0.1)),
-      column(3, numericInput("shape_trs", "shape_trs", 124, min = 0, max = 127)),
-      column(3, numericInput("size_trs", "size_trs", 10, min = 0))
+      column(3, spectrumInput("color_trs", "color_trs", selected = "cyan", update_on = "change"), style = "padding-right: 0px;"),
+      column(3, numericInput("alpha_trs", "alpha_trs", 0.5, min = 0, max = 1, step = 0.1), style = "padding: 0px;"),
+      column(3, numericInput("shape_trs", "shape_trs", 124, min = 0, max = 127), style = "padding: 0px;"),
+      column(3, numericInput("size_trs", "size_trs", 10, min = 0), style = "padding-left: 0px;")
     ),
     fluidRow(
-      column(3, spectrumInput("color_ins", "color_ins", selected = "black", update_on = "change")),
-      column(3, numericInput("alpha_ins", "alpha_ins", 0.5, min = 0, max = 1, step = 0.1)),
-      column(3, numericInput("shape_ins", "shape_ins", 6, min = 0, max = 127)),
-      column(3, numericInput("size_ins", "size_ins", 4, min = 0))
+      column(3, spectrumInput("color_ins", "color_ins", selected = "black", update_on = "change"), style = "padding-right: 0px;"),
+      column(3, numericInput("alpha_ins", "alpha_ins", 0.5, min = 0, max = 1, step = 0.1), style = "padding: 0px;"),
+      column(3, numericInput("shape_ins", "shape_ins", 6, min = 0, max = 127), style = "padding: 0px;"),
+      column(3, numericInput("size_ins", "size_ins", 4, min = 0), style = "padding-left: 0px;")
     ),
     fluidRow(
-      column(3, spectrumInput("color_del", "color_del", selected = "black", update_on = "change")),
-      column(3, numericInput("alpha_del", "alpha_del", 0.5, min = 0, max = 1, step = 0.1)),
-      column(3, numericInput("shape_del", "shape_del", 2, min = 0, max = 127)),
-      column(3, numericInput("size_del", "size_del", 4, min = 0))
+      column(3, spectrumInput("color_del", "color_del", selected = "black", update_on = "change"), style = "padding-right: 0px;"),
+      column(3, numericInput("alpha_del", "alpha_del", 0.5, min = 0, max = 1, step = 0.1), style = "padding: 0px;"),
+      column(3, numericInput("shape_del", "shape_del", 2, min = 0, max = 127), style = "padding: 0px;"),
+      column(3, numericInput("size_del", "size_del", 4, min = 0), style = "padding-left: 0px;")
     ),
     width = 450
   ),

@@ -8,7 +8,7 @@ shinyServer(function(input, output, session) {
   
   output$path_msa <- eventReactive(path_msa(), { req(nchar(path <- path_msa()) > 0); path; })
   
-  observeEvent(path_msa(), updateSliderInput(session, "range", max = len(), value = c(1, len())))
+  observeEvent(path_msa(), updateSliderInput(session, "range", max = len(), value = c(1, 0.15 * len())))
   
   msa <- eventReactive(path_msa(), { req(nchar(path <- path_msa()) > 0); readDNAMultipleAlignment(path); })
   
@@ -40,7 +40,6 @@ shinyServer(function(input, output, session) {
     loci <- pull(read_gbk_loc(path), accn)
     updateSelectizeInput(session, "accession", choices = loci, selected = NA)
     updateSelectizeInput(session, "product", choices = c(""), selected = NA)
-    updateSliderInput(session, "range", max = len(), value = c(1, len()))
   })
   
   cds <- eventReactive(input$accession, {
