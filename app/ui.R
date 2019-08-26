@@ -1,5 +1,3 @@
-library(shinydashboard)
-
 dashboardPage(
   dashboardHeader(title = "mutt"),
   dashboardSidebar(

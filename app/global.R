@@ -48,6 +48,22 @@ positions <- function(ref)
   pos
 }
 
+run_starts <- foo <- function(x)
+{
+  y <- x
+  N <- length(x)
+  if (N > 2)
+  {  
+    z <- x[1]
+    for (i in 2:N)
+    {
+      if (x[i-1] + 1 != x[i]) z <- x[i]
+      y[i] <- z
+    }
+  }
+  y
+}
+
 call_ind <- function(msa)
 {
   ref <- head(msa, 1)
