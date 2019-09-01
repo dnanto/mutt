@@ -2,8 +2,8 @@
 title: "indel-call algorithm demo"
 author: "Daniel Antonio Negrón"
 output:
-  pdf_document: default
-  html_document: default
+pdf_document: default
+html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -27,16 +27,26 @@ This document provides examples to illustrate several cases. Each colored box re
 
 ## Examples
 
+```{r}
+example <- function(msa)
+{
+  result <-
+    as.matrix(str_split(msa, "", simplify = T)) %>%
+      set_rownames(c("ref", paste("alt", 1:(nrow(.)-1), sep = "-"))) %>%
+      trace()
+  
+  print(result$plot)
+  
+  if (!is.null(result$calls)) 
+    print(with(result$calls, paste(id, mut, ifelse(mut == "del", REF, ALT), "@ POS", POS)))
+}
+```
+
 ### Example-1
 No mutation...
 
 ```{r}
-result <-
-  str_split(c("GATTACA", "GATTACA"), "", simplify = T) %>% as.matrix() %>% 
-    set_rownames(c("ref", "alt")) %>% plot_trace()
-
-if (!is.null(result$calls)) with(result$calls, paste(id, mut, ifelse(mut == "ins", ALT, REF), "@ pos", POS))
-result$plot
+c("GATTACA", "GATTACA") %>% example()
 ```
 
 ### Example-2
@@ -44,13 +54,7 @@ result$plot
 One deletion...
 
 ```{r}
-result <-
-  str_split(c("GATTACA", "GAT-ACA"), "", simplify = T) %>% as.matrix() %>% 
-    set_rownames(c("ref", "alt")) %>% plot_trace()
-
-result$plot
-if (!is.null(result$calls)) 
-  with(result$calls, paste(id, mut, ifelse(mut == "ins", ALT, REF), "@ pos", POS))
+c("GATTACA", "GAT-ACA") %>% example()
 ```
 
 ### Example-3
@@ -58,13 +62,7 @@ if (!is.null(result$calls))
 One insertion...
 
 ```{r}
-result <- 
-  str_split(c("GAT-ACA", "GATTACA"), "", simplify = T) %>% as.matrix() %>% 
-    set_rownames(c("ref", "alt")) %>% plot_trace()
-
-result$plot
-if (!is.null(result$calls)) 
-  with(result$calls, paste(id, mut, ifelse(mut == "ins", ALT, REF), "@ pos", POS))
+c("GAT-ACA", "GATTACA") %>% example()
 ```
 
 ### Example-4
@@ -72,13 +70,7 @@ if (!is.null(result$calls))
 Overhang deletions...
 
 ```{r}
-result <-
-  str_split(c("GATTACA", "G----CA", "GA----A", "GAT----"), "", simplify = T) %>% as.matrix() %>% 
-    set_rownames(c("ref", "alt-1", "alt-2", "alt-3")) %>% plot_trace()
-
-result$plot
-if (!is.null(result$calls)) 
-  with(result$calls, paste(id, mut, ifelse(mut == "ins", ALT, REF), "@ pos", POS))
+c("GATTACA", "G----CA", "GA----A", "GAT----") %>% example()
 ```
 
 ### Example-4
@@ -86,13 +78,7 @@ if (!is.null(result$calls))
 Overhang insertions...
 
 ```{r}
-result <-
-  str_split(c("-------", "-ATTA--", "--TTAC-", "---TACA"), "", simplify = T) %>% as.matrix() %>% 
-    set_rownames(c("ref", "alt-1", "alt-2", "alt-3")) %>% plot_trace()
-
-result$plot
-if (!is.null(result$calls))
-  with(result$calls, paste(id, mut, ifelse(mut == "ins", ALT, REF), "@ pos", POS))
+c("-------", "-ATTA--", "--TTAC-", "---TACA") %>% example()
 ```
 
 ### Example-5
@@ -100,13 +86,7 @@ if (!is.null(result$calls))
 Overhang insertions/deletions...
 
 ```{r}
-result <-
-  str_split(c("GAT----", "GA----A", "G----CA", "GATTACA"), "", simplify = T) %>% as.matrix() %>% 
-    set_rownames(c("ref", "alt-1", "alt-2", "alt-3")) %>% plot_trace()
-
-result$plot
-if (!is.null(result$calls))
-  with(result$calls, paste(id, mut, ifelse(mut == "ins", ALT, REF), "@ pos", POS))
+c("GAT----", "GA----A", "G----CA", "GATTACA") %>% example()
 ```
 
 ### Example-6
@@ -114,14 +94,7 @@ if (!is.null(result$calls))
 Complex deletions example...
 
 ```{r}
-result <-
-  c("GATTACAGATTACA", "GAT----GATT-CA", "GA------AT--CA", "------------CA") %>%
-    str_split("", simplify = T) %>% as.matrix() %>% 
-    set_rownames(c("ref", "alt-1", "alt-2", "alt-3")) %>% plot_trace()
-
-result$plot
-if (!is.null(result$calls))
-  with(result$calls, paste(id, mut, ifelse(mut == "ins", ALT, REF), "@ pos", POS))
+c("GATTACAGATTACA", "GAT----GATT-CA", "GA------AT--CA", "------------CA") %>% example()
 ```
 
 ### Example-7
@@ -129,13 +102,6 @@ if (!is.null(result$calls))
 Complex insertions example...
 
 ```{r}
-result <- 
-  c("------------CA", "GA------AT--CA", "GAT----GATT-CA", "GATTACAGATTACA") %>%
-    str_split("", simplify = T) %>% as.matrix() %>% 
-    set_rownames(c("ref", "alt-1", "alt-2", "alt-3")) %>% plot_trace()
-
-result$plot
-if (!is.null(result$calls))
-  with(result$calls, paste(id, mut, ifelse(mut == "ins", ALT, REF), "@ pos", POS))
+c("------------CA", "GA------AT--CA", "GAT----GATT-CA", "GATTACAGATTACA") %>% example()
 ```
 

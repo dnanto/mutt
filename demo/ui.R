@@ -7,8 +7,9 @@ fluidPage(
     verbatimTextOutput("path", placeholder = T)
   ),
   tagAppendAttributes(
-    textAreaInput("box", "box", height = "200px", resize = "vertical"), 
+    textAreaInput("msa", "msa", height = "200px", resize = "vertical"), 
     style = "width: 100%; font-family: monospace;"
   ),
-  plotOutput("plot")
+  withSpinner(plotOutput("plot"), type = 8),
+  withSpinner(DT::DTOutput("call"), type = 8)
 )
