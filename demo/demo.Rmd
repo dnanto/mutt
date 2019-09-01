@@ -1,39 +1,141 @@
 ---
-title: "demo"
-output: html_document
+title: "indel-call algorithm demo"
+author: "Daniel Antonio Negrón"
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
-library(tidyverse)
-library(Biostrings)
-knitr::opts_chunk$set(echo = TRUE)
+source("global.R")
+knitr::opts_chunk$set(echo = F, fig.width = 10, fig.height = 3)
 ```
 
+## Summary
+
+This project developed a variant calling algorithm to enhance the detection of indel events. The aim was to determine whether an observed indel resulted from successive events; otherwise, a naïve algorithm would incorrectly label it as one event. The algorithm partitions gaps based on the longest common indel event. The assumption is that indels expand from an initial core, thus generating separate events. The algorithm only uses information from a multiple alignment and assumes that it is optimal. 
+
+The following table describes the last three rows in each plot that correspond to algorithm variables. The regular expression pattern `3+2?|2` delimits the indel events based on the `vec` variable.
+
+| variable | note |
+|-|-|
+| gap | the column contains a gap, but is not all gaps |
+| run | the column is equal to the next column |
+| vec | the result of 2 * gap + run |
+
+This document provides examples to illustrate several cases. Each colored box represents an area that contains a separate indel. The algorithm compares each alternate sequence to the reference in each box, generating a variant call if they differ. This final step is not shown.
+
+## Examples
+
+### Example-1
+No mutation...
+
 ```{r}
-msa <- readDNAMultipleAlignment("../test.mas") %>% as.matrix()
-mat <- msa == "-"
-gap <- apply(mat, 2, any)
-run <- (mat[,1:(ncol(mat)-1)] == mat[,2:ncol(mat)]) %>% apply(2, all) %>% c(last(.))
-vec <- 2 * gap + run
-loc <- paste(vec, collapse = "") %>% str_locate_all("3+2?|2") %>% as.data.frame()
+result <-
+  str_split(c("GATTACA", "GATTACA"), "", simplify = T) %>% as.matrix() %>% 
+    set_rownames(c("ref", "alt")) %>% plot_trace()
 
-data <- as.data.frame(loc)
+if (!is.null(result$calls)) with(result$calls, paste(id, mut, ifelse(mut == "ins", ALT, REF), "@ pos", POS))
+result$plot
+```
 
-data <- mutate(loc, xmin = start - 0.25, xmax = end + 0.25, mut = if_else(msa[1, start] == "-", "ins", "del"))
+### Example-2
 
-df <- rbind(msa, gap = gap + 0, run = run + 0, vec = vec + 0) %>% as.data.frame()
+One deletion...
 
-rownames_to_column(df, "id") %>%
-  mutate_at("id", factor, levels = rev(rownames(df))) %>%
-  gather(key, val, -id) %>% 
-  mutate_at("key", str_remove, "^V") %>%
-  mutate_at("key", as.numeric) %>%
-   ggplot(aes(key, id)) + 
-    geom_text(aes(label = val)) + 
-    geom_rect(
-      data = data, ymin = -Inf, ymax = Inf, alpha = 0.25,
-      aes(x = NULL, y = NULL, xmin = xmin, xmax = xmax, fill = mut)) +
-    theme_minimal() +
-    theme(legend.position = "bottom", panel.grid = element_blank())
+```{r}
+result <-
+  str_split(c("GATTACA", "GAT-ACA"), "", simplify = T) %>% as.matrix() %>% 
+    set_rownames(c("ref", "alt")) %>% plot_trace()
+
+result$plot
+if (!is.null(result$calls)) 
+  with(result$calls, paste(id, mut, ifelse(mut == "ins", ALT, REF), "@ pos", POS))
+```
+
+### Example-3
+
+One insertion...
+
+```{r}
+result <- 
+  str_split(c("GAT-ACA", "GATTACA"), "", simplify = T) %>% as.matrix() %>% 
+    set_rownames(c("ref", "alt")) %>% plot_trace()
+
+result$plot
+if (!is.null(result$calls)) 
+  with(result$calls, paste(id, mut, ifelse(mut == "ins", ALT, REF), "@ pos", POS))
+```
+
+### Example-4
+
+Overhang deletions...
+
+```{r}
+result <-
+  str_split(c("GATTACA", "G----CA", "GA----A", "GAT----"), "", simplify = T) %>% as.matrix() %>% 
+    set_rownames(c("ref", "alt-1", "alt-2", "alt-3")) %>% plot_trace()
+
+result$plot
+if (!is.null(result$calls)) 
+  with(result$calls, paste(id, mut, ifelse(mut == "ins", ALT, REF), "@ pos", POS))
+```
+
+### Example-4
+
+Overhang insertions...
+
+```{r}
+result <-
+  str_split(c("-------", "-ATTA--", "--TTAC-", "---TACA"), "", simplify = T) %>% as.matrix() %>% 
+    set_rownames(c("ref", "alt-1", "alt-2", "alt-3")) %>% plot_trace()
+
+result$plot
+if (!is.null(result$calls))
+  with(result$calls, paste(id, mut, ifelse(mut == "ins", ALT, REF), "@ pos", POS))
+```
+
+### Example-5
+
+Overhang insertions/deletions...
+
+```{r}
+result <-
+  str_split(c("GAT----", "GA----A", "G----CA", "GATTACA"), "", simplify = T) %>% as.matrix() %>% 
+    set_rownames(c("ref", "alt-1", "alt-2", "alt-3")) %>% plot_trace()
+
+result$plot
+if (!is.null(result$calls))
+  with(result$calls, paste(id, mut, ifelse(mut == "ins", ALT, REF), "@ pos", POS))
+```
+
+### Example-6
+
+Complex deletions example...
+
+```{r}
+result <-
+  c("GATTACAGATTACA", "GAT----GATT-CA", "GA------AT--CA", "------------CA") %>%
+    str_split("", simplify = T) %>% as.matrix() %>% 
+    set_rownames(c("ref", "alt-1", "alt-2", "alt-3")) %>% plot_trace()
+
+result$plot
+if (!is.null(result$calls))
+  with(result$calls, paste(id, mut, ifelse(mut == "ins", ALT, REF), "@ pos", POS))
+```
+
+### Example-7
+
+Complex insertions example...
+
+```{r}
+result <- 
+  c("------------CA", "GA------AT--CA", "GAT----GATT-CA", "GATTACAGATTACA") %>%
+    str_split("", simplify = T) %>% as.matrix() %>% 
+    set_rownames(c("ref", "alt-1", "alt-2", "alt-3")) %>% plot_trace()
+
+result$plot
+if (!is.null(result$calls))
+  with(result$calls, paste(id, mut, ifelse(mut == "ins", ALT, REF), "@ pos", POS))
 ```
 

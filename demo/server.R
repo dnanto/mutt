@@ -18,9 +18,17 @@ shinyServer(function(input, output, session) {
 
   output$plot <- renderPlot({
     req(input$box)
-    str_split(input$box, "\n", simplify = T) %>% 
-      str_split("", simplify = T) %>%
-      plot_trace()
+    
+    msa <-
+      str_split(input$box, "\n", simplify = T) %>% 
+        str_split("", simplify = T) %>%
+        as.matrix()
+    
+    rownames(msa) <- c("ref", paste("alt", 2:nrow(msa), sep = "-"))
+    
+    trace <- plot_trace(msa)
+    
+    trace$plot
   })
   
 })
