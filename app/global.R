@@ -6,7 +6,7 @@ library(colourpicker)
 library(tidyverse)
 library(ggrepel)
 
-roots <- c(home = "..")
+roots <- c(home = "~")
 
 types <- c("trv", "trs", "ins", "del")
 
@@ -58,7 +58,7 @@ call_snp <- function(msa)
 	bind_rows(lapply(2:nrow(msa), function(idx) {
 		alt <- msa[idx, ]
 		pos <- pos[ref != '-' & alt != '-' & ref != alt]
-		data.frame(idx = idx, pos = pos, ref = ref[pos], alt = alt[pos], stringsAsFactors = F)
+		if (!is_empty(pos)) data.frame(idx = idx, pos = pos, ref = ref[pos], alt = alt[pos], stringsAsFactors = F)
 	})) %>%
 		mutate_at(c("ref", "alt"), toupper) %>%
 		mutate(call = case_when(
