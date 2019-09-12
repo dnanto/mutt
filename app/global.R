@@ -127,7 +127,7 @@ overlevels <- function(ranges)
 plot_cds <- function(cds, input)
 {
 	cds <-
-		mutate(cds, x = ifelse(strand == '-', end, start), xend = ifelse(strand == "+", end, start)) %>%
+		mutate(cds, x = ifelse(strand == '-', aend, astart), xend = ifelse(strand == "+", aend, astart)) %>%
 		filter(input$range[1] <= x & x <= input$range[2]) %>%
 		mutate(xend = pmin(xend, input$range[2]))
 
@@ -158,6 +158,7 @@ plot_cds <- function(cds, input)
 		theme(
 			legend.position = "none",
 			title = element_text(size = input$title_size),
+			text = element_text(family = "mono"),
 			axis.text.x = element_blank(),
 			axis.text.y = element_blank()
 		)
@@ -185,8 +186,8 @@ plot_map <- function(calls, input)
 	size <- setNames(c(input$size_trv, input$size_trv, input$size_ins, input$size_del), types)
 
 	ggplot() +
-		geom_point(data = trs, aes(pos, id, color = call, size = call, shape = call), position = y_trv) +
-		geom_point(data = trv, aes(pos, id, color = call, size = call, shape = call), position = y_trs) +
+		geom_point(data = trs, aes(pos, id, color = call, size = call, shape = call), position = y_trs) +
+		geom_point(data = trv, aes(pos, id, color = call, size = call, shape = call), position = y_trv) +
 		geom_point(data = ins, aes(pos, id, color = call, size = call, shape = call), position = y_ins) +
 		geom_point(data = del, aes(pos, id, color = call, size = call, shape = call), position = y_del) +
 		scale_color_manual(values = color) +
@@ -196,7 +197,8 @@ plot_map <- function(calls, input)
 		ggtitle(paste("Variation [", lab[1], "]")) +
 		theme_minimal() +
 		theme(
-			legend.position = "bottom",
-			title = element_text(size = input$title_size)
+			title = element_text(size = input$title_size),
+			text = element_text(family = "mono"),
+			legend.position = "bottom"
 		)
 }

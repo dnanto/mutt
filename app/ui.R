@@ -5,7 +5,7 @@ dashboardPage(
 		sliderInput("range", "range", min = 1, max = 1, value = c(1, 1), width = "100%"),
 
 		fluidRow(
-			column(4, numericInput("height", "height", 800), style = "padding-right: 0px;"),
+			column(4, numericInput("height", "height", 800, step = 100), style = "padding-right: 0px;"),
 			column(4, numericInput("rel_height_cds", "rel_height_cds", 1, step = 1, min = 1), style = "padding: 0px;"),
 			column(4, numericInput("rel_height_map", "rel_height_map", 4, step = 1, min = 1), style = "padding-left: 0px;")
 		),

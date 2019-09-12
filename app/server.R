@@ -14,7 +14,13 @@ shinyServer(function(input, output, session) {
 	})
 
 	#### calc alignment <-> ref position mapping
-	# pos <- eventReactive(msa(), pos_map(msa()[1, ]))
+	ref2aln <- eventReactive(
+		msa(),
+		pos_map(msa()[1, ]) %>%
+			enframe(name = "aln", value = "ref") %>%
+			distinct(ref, .keep_all = T) %>%
+			pull(aln)
+	)
 
 	#### output the taxa table
 	output$taxa <- DT::renderDT(
@@ -50,10 +56,11 @@ shinyServer(function(input, output, session) {
 
 	#### load the CDS objects
 	cds <- eventReactive(input$accession, {
-		req(path <- path_gbk())
+		req(path <- path_gbk(), pos <- ref2aln())
 		genbankr::readGenBank(text = read_gbk_acc(path, input$accession), ret.seq = F) %>%
 			genbankr::cds() %>%
 			as.data.frame() %>%
+			mutate(astart = pos[start], aend = pos[end]) %>%
 			select(-translation)
 	})
 
@@ -76,7 +83,7 @@ shinyServer(function(input, output, session) {
 	observeEvent(input$product, {
 		cds <- cds()
 		idx <- which(cds$product == input$product)
-		updateSliderInput(session, "range", value = c(min(cds$start[idx]), max(cds$end[idx])))
+		updateSliderInput(session, "range", value = c(min(cds$astart[idx]), max(cds$aend[idx])))
 	})
 
 	## map
