@@ -93,26 +93,6 @@ call_ind <- function(msa)
 		mutate(call = factor(if_else(str_detect(ref, "-"), "ins", "del"), c("ins", "del")))
 }
 
-call_ind_overlap <- function(msa)
-{
-	mat <- msa == "-"
-	gap <- apply(mat, 2, any) - apply(mat, 2, all)
-	run <- (mat[, 1:(ncol(mat)-1)] == mat[, 2:ncol(mat)]) %>% apply(2, all) %>% c(last(.))
-	loc <- paste(2 * gap + run, collapse = "") %>% str_locate_all("3+2?|2") %>% as.data.frame()
-
-	bind_rows(apply(loc, 1, function(ele) {
-		rng <- ele["start"]:ele["end"]
-		data.frame(
-			idx = 2:nrow(msa), pos = ele["start"],
-			ref = paste(msa[1, rng], collapse = ""),
-			alt = apply(as.matrix(msa[2:nrow(msa), rng]), 1, paste, collapse = ""),
-			stringsAsFactors = F, row.names = NULL
-		)
-	})) %>%
-		filter(ref != alt) %>%
-		mutate(call = factor(if_else(str_detect(ref, "-"), "ins", "del"), c("ins", "del")))
-}
-
 overlevels <- function(ranges)
 {
 	IRanges::findOverlaps(ranges) %>%
@@ -126,15 +106,11 @@ overlevels <- function(ranges)
 
 plot_cds <- function(cds, input)
 {
-	cds <-
-		mutate(cds, x = ifelse(strand == '-', aend, astart), xend = ifelse(strand == "+", aend, astart)) %>%
-		filter(input$range[1] <= x & x <= input$range[2]) %>%
-		mutate(xend = pmin(xend, input$range[2]))
+	cds <- mutate(cds, x = ifelse(strand == '-', aend, astart), xend = ifelse(strand == "+", aend, astart))
 
-	lvl <-
-		IRanges::IRanges(cds$start, cds$end) %>%
-		overlevels() %>%
-		factor(., levels = rev(unique(.)))
+	print(cds)
+
+	lvl <- IRanges::IRanges(cds$astart, cds$aend) %>% overlevels() %>% factor(., levels = rev(unique(.)))
 
 	ggplot(cds, aes(x = x, xend = xend, y = lvl, yend = lvl)) +
 		geom_segment(

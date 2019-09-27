@@ -103,7 +103,7 @@ shinyServer(function(input, output, session) {
 			mutate(id = factor(lab[idx], levels = rev(lab)))
 
 		ind <-
-			call_ind_overlap(msa) %>%
+			call_ind(msa) %>%
 			mutate_at("call", factor, levels = types) %>%
 			mutate(id = factor(lab[idx], levels = rev(lab)))
 
